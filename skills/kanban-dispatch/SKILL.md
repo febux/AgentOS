@@ -25,9 +25,11 @@ license: MIT
 - Тело тикета = спека: что сделать, где (путь), критерий готовности. Пиши её
   сам из фразы пользователя, уточняй только если совсем неясно.
 - Assignee по умолчанию `opencode`.
-- Флаги — строками В ТЕЛЕ тикета: `model: <id>`, `timeout: <sec>|default`,
-  `gate: <sec>|default`. Пользователь сказал «долгая задача» → добавь timeout,
-  «опасная/деплой» → gate.
+- Флаги — строками В ТЕЛЕ тикета: `type: build|plan|explore|title|summary`
+  (модель из agentos/workspace/models.conf; дефолт build — добавляй, когда ясно,
+  что задача не кодовая: план/исследование), `model: <id>` (перекрывает type),
+  `timeout: <sec>|default`, `gate: <sec>|default`.
+  Пользователь сказал «долгая задача» → добавь timeout, «опасная/деплой» → gate.
 
 ## Команды
 
@@ -40,6 +42,15 @@ license: MIT
   (gateway обычно подхватывает ready сам каждые 60с)
 - зависло: `hermes kanban reclaim <id>`
 - правка спеки: `hermes kanban edit <id>`, затем снова dispatch
+
+## Модели
+
+- Список доступных: `opencode models` (id вида `provider/model`, разделитель `/`, не `:`).
+- Маппинг тип→модель: `~/Projects/pet/agentos/workspace/models.conf`
+  (build/plan/explore/title/summary). Флаг `type: <x>` в теле тикета → run.sh `-T <x>`.
+- Дефолт — type build. `model: <id>` перекрывает type.
+- ponytail: opencode CLI `run` игнорирует `agent.<X>.model` из opencode.jsonc
+  (берёт только глобальный `model`) — потому маппинг и живёт в models.conf.
 
 ## Ответ пользователю
 
