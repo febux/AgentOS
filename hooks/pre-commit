@@ -1,0 +1,3 @@
+#!/bin/sh
+# pre-commit: секреты не попадают в историю. Требует verify.py в корне репо.
+exec python3 "$(git rev-parse --show-toplevel)/verify.py" --staged
