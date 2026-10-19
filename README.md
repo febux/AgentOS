@@ -51,41 +51,121 @@ Zero new runtime code: the whole "OS" is Hermes + OpenCode configs, one
 verify script and one hook. Everything else is already written by Nous Research
 and openai/codex... that is, sst/opencode.
 
+## Install
+
+Two things must already work on your machine: [Hermes](https://hermes-agent.nousresearch.com/docs)
+(the `hermes` command) and [OpenCode](https://opencode.ai) (the `opencode` command).
+Then, in order:
+
+1. **Put this folder anywhere**, e.g. `~/Projects/pet/agentos`.
+
+2. **Create the worker profile** — a headless Hermes profile whose only job is
+   to run OpenCode on tickets:
+
+   ```bash
+   hermes profile create opencode
+   ```
+
+   Then open `~/.hermes/profiles/opencode/config.yaml` and make it look like
+   this (model/provider = whatever you already use; the key parts are
+   `gateway: false` and `platforms: {}` — without them the worker hits a port
+   conflict):
+
+   ```yaml
+   model:
+     default: glm-5.2
+     provider: custom
+   gateway:
+     enabled: false
+   platforms: {}
+   terminal:
+     backend: local
+     cwd: /home/san/Projects/pet/agentos/workspace
+   ```
+
+3. **Check the verifier runs on your machine**:
+
+   ```bash
+   python3 verify.py --selftest
+   ```
+
+4. **Turn on auto-dispatch** (ready tickets get picked up every 60 s;
+   optional — manual `dispatch` from step 6 also works without it):
+
+   ```bash
+   hermes gateway install
+   systemctl --user start hermes-gateway
+   ```
+
+5. **Create a board for your project** (one board = one project):
+
+   ```bash
+   hermes kanban --board myproj boards create
+   ```
+
+6. **Write your first ticket** and dispatch it:
+
+   ```bash
+   hermes kanban --board myproj create "Add /health to FastAPI" \
+     --body "endpoint in src/api/health.py, responds 200 + {status:ok}, test in tests/" \
+     --assignee opencode \
+     --workspace dir:~/Projects/myproj
+
+   hermes kanban --board myproj dispatch --max 3
+   ```
+
+That's it — the worker picks it up, OpenCode writes the code, verify.py checks
+it, the ticket completes or gets blocked with a reason.
+
+- Daily cycle in plain words: [docs/guide.md](docs/guide.md)
+- Cheat sheet and traps: [docs/ops.md](docs/ops.md)
+- Verify gate into another repo: run `install.sh` from that repo's root
+
+## Optional: MCP server (external agents)
+
+Lets Claude Code, Cursor, Codex etc. work with your board — create tickets,
+check status, confirm gates. Stdio JSON-RPC, stdlib-only.
+
+Check that it runs:
+
+```bash
+python3 mcp/server.py --selftest
+```
+
+Then register it in your client (replace the path with yours):
+
+```bash
+# Claude Code
+claude mcp add agentos-kanban -- python3 ~/Projects/pet/agentos/mcp/server.py
+```
+
+```toml
+# Codex — ~/.codex/config.toml
+[mcp_servers.agentos-kanban]
+command = "python3"
+args = ["/home/san/Projects/pet/agentos/mcp/server.py"]
+```
+
+```json
+// Cursor — ~/.cursor/mcp.json
+{ "mcpServers": { "agentos-kanban": {
+    "command": "python3",
+    "args": ["/home/san/Projects/pet/agentos/mcp/server.py"] } } }
+```
+
+## Optional: kanban-dispatch skill (natural language inside Hermes)
+
+Gives your main Hermes profile the skill "поставь задачу opencode" / "что на
+доске" — it writes the ticket itself instead of you typing the CLI:
+
+```bash
+mkdir -p ~/.hermes/skills/productivity
+cp -r skills/kanban-dispatch ~/.hermes/skills/productivity/
+```
+
+Works on the next session start.
+
 ## Status
 
-Phase 1 done (2026-10-18): the full board→worker→opencode→verify→complete cycle
-runs without manual intervention; pre-commit blocks a fake AKIA. A nuance found
-during implementation: the standing order lives in workspace/AGENTS.md (Hermes
-looks for AGENTS.md in cwd, not in the profile home); the model for opencode:
-`zai-coding-plan/glm-5.2`. Next — PLAN.md phase 2.
-
-Phase 2 done (2026-10-18): retry loop in workspace/AGENTS.md (one retry with
-the verify error text in the prompt, second Failed → block), report.sh
-(stats + done/blocked lists). Acceptance: greet.py (py gate) done + Passed;
-an unsatisfiable spec (a 5-byte html) → blocked with a sensible reason, not
-done with an empty file. Verified: the worker honestly resolves resolvable
-contradictions (html without `</html>` is valid HTML5, since closing tags are
-optional) and blocks unresolvable ones.
-
-Phase 3 (2026-10-18, driven by actual pain): install.sh (verify gate in any
-repo), `model: <id>` in the ticket body → the worker passes it to opencode run
-(list: `opencode models`), auto-dispatcher = gateway systemd-service
-(`hermes kanban daemon` deprecated). A git gate is deliberately not built:
-review and commit are yours; we'll revisit when it hurts.
-
-Phase 4 done (2026-10-18, hardening based on the analysis of rivet-dev/agentos
-and SapienXai/AgentOS, full breakdown in docs/upstream-ideas.md): honest verify
-verdict {pass|fail|skipped} + retryable (NORETRY → block without retry),
-path-jail for artifacts, extended secret scanner (query-param, KEY=VALUE,
-github_pat_, the xox- family), write-once chmod 0o444 after Passed, `--machine`
-ERR_/OK_ output format; workspace/run.sh — killpg timeout for opencode via the
-`timeout:` flag in the ticket; workspace/gate.sh — human gate `gate:` with
-timeout=deny and confirmation by an APPROVED comment. Also fixed a report.sh
-bug along the way (tail -n +2 was eating single-row lists). Acceptance run:
-selftest (new fixtures), timeout process-tree kill, both gate paths, machine
-output.
-
-Integrations (2026-10-18): `mcp/server.py` — a stdio MCP server (stdlib-only,
-7 tools over `hermes kanban`) for external agents — Claude Code, Cursor,
-Codex, OMP; client configs in docs/ops.md. Inside Hermes — the
-`kanban-dispatch` skill: "assign a task to opencode" in natural language.
+Phases 1–4 done, plus MCP integrations. The phase-by-phase history and
+acceptance runs: [docs/history.md](docs/history.md).
