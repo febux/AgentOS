@@ -51,6 +51,11 @@ license: MIT
 - Дефолт — type build. `model: <id>` перекрывает type.
 - ponytail: opencode CLI `run` игнорирует `agent.<X>.model` из opencode.jsonc
   (берёт только глобальный `model`) — потому маппинг и живёт в models.conf.
+- модель ИСПОЛНИТЕЛЯ (opencode run) — ТОЛЬКО строкой `model: <provider/model>`
+  в теле тикета. НЕ используй `hermes kanban --model`/`set-model` для этого:
+  это model_override hermes-профиля-воркера («мозг», читающий тикет и зовущий
+  run.sh), у него провайдер только custom/Z.AI — kimi/ollama там дают exit 78
+  terminal provider и blocked-тикет (проверено на lanlink t_da9d6ec0).
 
 ## Ответ пользователю
 

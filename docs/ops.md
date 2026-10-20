@@ -22,6 +22,12 @@ Logs: `journalctl --user -u hermes-gateway -f`.
 Add a `model: <id>` line to the ticket body — the worker will pass it to
 `opencode run -m` instead of the default. Current list: `opencode models`.
 
+This is the ONLY way to pick the executor model. `hermes kanban --model` /
+`set-model` override the model of the worker **profile** (the Hermes brain
+that reads the ticket and calls run.sh), not opencode; the worker profile
+only has the custom/Z.AI provider, so ollama/kimi ids there fail with
+exit 78 (terminal provider error) and block the ticket.
+
 ## Timeout for long tasks (phase 4f)
 
 A `timeout: <sec>` line in the ticket body (or `timeout: default` = 600s) —
